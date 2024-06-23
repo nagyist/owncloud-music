@@ -94,8 +94,8 @@ class AmpacheMiddleware extends Middleware {
 		// year 2038 (or already in 2037 if the admin has configured close to the maximum expiry time).
 
 		$this->checkHandshakeTimestamp($timestamp, $currentTime);
-		$apiKeyId = $this->checkHandshakeAuthentication($user, $timestamp, $auth);
-		$session = $this->startNewSession($user, $expiryDate, $version, $apiKeyId);
+		$credentials = $this->checkHandshakeAuthentication($user, $timestamp, $auth);
+		$session = $this->startNewSession($credentials['user'], $expiryDate, $version, $credentials['apiKeyId']);
 		$controller->setSession($session);
 	}
 
@@ -113,18 +113,22 @@ class AmpacheMiddleware extends Middleware {
 		}
 	}
 
-	private function checkHandshakeAuthentication(?string $user, int $timestamp, ?string $auth) : int {
+	private function checkHandshakeAuthentication(?string $user, int $timestamp, ?string $auth) : array {
 		if ($user === null || $auth === null) {
 			throw new AmpacheException('Invalid Login - required credentials missing', 401);
 		}
 
-		$hashes = $this->ampacheUserMapper->getPasswordHashes($user);
+		$user = $this->ampacheUserMapper->getProperUserId($user);
 
-		foreach ($hashes as $keyId => $hash) {
-			$expectedHash = \hash('sha256', $timestamp . $hash);
+		if ($user !== null) {
+			$hashes = $this->ampacheUserMapper->getPasswordHashes($user);
 
-			if ($expectedHash === $auth) {
-				return (int)$keyId;
+			foreach ($hashes as $keyId => $hash) {
+				$expectedHash = \hash('sha256', $timestamp . $hash);
+
+				if ($expectedHash === $auth) {
+					return ['user' => $user, 'apiKeyId' => (int)$keyId];
+				}
 			}
 		}
 
@@ -147,7 +151,7 @@ class AmpacheMiddleware extends Middleware {
 	}
 
 	private function handleNonHandshakeAction(AmpacheController $controller, ?string $action) : void {
-		$token = $this->request->getParam('auth') ?: $this->request->getParam('ssid');
+		$token = $this->request->getParam('auth') ?: $this->request->getParam('ssid') ?: $this->getTokenFromHeader();
 
 		// 'ping' is allowed without a session (but if session token is passed, then it has to be valid)
 		if ($action === 'ping' && empty($token)) {
@@ -163,6 +167,19 @@ class AmpacheMiddleware extends Middleware {
 
 		if ($action === null) {
 			throw new AmpacheException("Required argument 'action' missing", 400);
+		}
+	}
+
+	private function getTokenFromHeader() : ?string {
+		// The Authorization header cannot be obtained with $this->request->getHeader(). Hence, we
+		// use the native PHP API for this. Apparently, the getallheaders() function is not available
+		// on non-Apache servers (e.g. nginx) prior to PHP 7.3.
+		$authHeader = getallheaders()['Authorization'] ?? '';
+		$prefix = 'Bearer ';
+		if (Util::startsWith($authHeader, $prefix)) {
+			return \substr($authHeader, \strlen($prefix));
+		} else {
+			return null;
 		}
 	}
 

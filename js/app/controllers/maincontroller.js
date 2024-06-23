@@ -135,7 +135,7 @@ function ($rootScope, $scope, $timeout, $window, ArtistFactory,
 			$scope.artists = libraryService.getCollection();
 
 			// Emit the event asynchronously so that the DOM tree has already been
-			// manipulated and rendered by the browser when obeservers get the event.
+			// manipulated and rendered by the browser when observers get the event.
 			$timeout(function() {
 				$rootScope.$emit('collectionLoaded');
 			});
@@ -145,6 +145,11 @@ function ($rootScope, $scope, $timeout, $window, ArtistFactory,
 				libraryService.setPlaylists(playlists);
 				$scope.playlists = libraryService.getAllPlaylists();
 				$rootScope.$emit('playlistsLoaded');
+
+				// fetch favorites once library, playlists, and podcasts are all loaded
+				if (libraryService.podcastsLoaded()) {
+					updateFavorites();
+				}
 			});
 
 			// Load also the smart playlist once the collection is ready
@@ -206,8 +211,17 @@ function ($rootScope, $scope, $timeout, $window, ArtistFactory,
 		Restangular.one('podcasts').get().then(function(podcasts) {
 			libraryService.setPodcasts(podcasts);
 			$rootScope.$emit('podcastsLoaded');
+
+			// fetch favorites once library, playlists, and podcasts are all loaded
+			if (libraryService.collectionLoaded() && libraryService.playlistsLoaded()) {
+				updateFavorites();
+			}
 		});
 	};
+
+	function updateFavorites() {
+		Restangular.one('favorites').get().then((favorites) => libraryService.setFavorites(favorites));
+	}
 
 	// initial loading of artists and radio stations
 	$scope.update();
@@ -506,7 +520,7 @@ function ($rootScope, $scope, $timeout, $window, ArtistFactory,
 		let appViewWidth = appView.outerWidth();
 
 		// Adjust controls bar width to not overlap with the scroll bar.
-		// Subtrack one pixel from the width because outerWidth() seems to
+		// Subtract one pixel from the width because outerWidth() seems to
 		// return rounded integer value which may sometimes be slightly larger
 		// than the actual width of the #app-view.
 		let controlsWidth = appViewWidth - 1;

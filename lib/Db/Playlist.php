@@ -9,12 +9,13 @@
  * @author Morris Jobke <hey@morrisjobke.de>
  * @author Pauli Järvinen <pauli.jarvinen@gmail.com>
  * @copyright Morris Jobke 2014
- * @copyright Pauli Järvinen 2017 - 2023
+ * @copyright Pauli Järvinen 2017 - 2024
  */
 
 namespace OCA\Music\Db;
 
 use OCA\Music\Utility\Util;
+use OCP\IURLGenerator;
 
 /**
  * @method string getName()
@@ -58,8 +59,7 @@ class Playlist extends Entity {
 	 * @return int[]
 	 */
 	public function getTrackIdsAsArray() : array {
-		if (!$this->trackIds || \strlen($this->trackIds) < 3) {
-			// the list is empty if there is nothing between the leading and trailing '|'
+		if ($this->isEmpty()) {
 			return [];
 		} else {
 			$encoded = \substr($this->trackIds, 1, -1); // omit leading and trailing '|'
@@ -75,19 +75,20 @@ class Playlist extends Entity {
 		$this->setTrackIds('|' . \implode('|', $trackIds) . '|');
 	}
 
-	public function toAPI() : array {
+	public function toAPI(IURLGenerator $urlGenerator) : array {
 		return [
 			'name' => $this->getName(),
 			'trackIds' => $this->getTrackIdsAsArray(),
 			'id' => $this->getId(),
 			'created' => $this->getCreated(),
 			'updated' => $this->getUpdated(),
-			'comment' => $this->getComment()
+			'comment' => $this->getComment(),
+			'cover' => $this->getCoverUrl($urlGenerator)
 		];
 	}
 
 	public function toAmpacheApi(callable $createImageUrl) : array {
-		return [
+		$result = [
 			'id' => (string)$this->getId(),
 			'name' => $this->getName(),
 			'owner' => $this->getUserId(),
@@ -97,6 +98,8 @@ class Playlist extends Entity {
 			'rating' => $this->getRating() ?? 0,
 			'type' => 'Private'
 		];
+		$result['has_art'] = !empty($result['art']);
+		return $result;
 	}
 
 	public function toSubsonicApi() : array {
@@ -110,7 +113,21 @@ class Playlist extends Entity {
 			'comment' => $this->getComment() ?: '',
 			'created' => Util::formatZuluDateTime($this->getCreated()),
 			'changed' => Util::formatZuluDateTime($this->getUpdated()),
-			'coverArt' => 'pl-' . $this->getId() // work around: DSub always fetches the art using ID like "pl-NNN" even if we  use some other format here
+			'coverArt' => 'pl-' . $this->getId() // work around: DSub always fetches the art using ID like "pl-NNN" even if we would use some other format here
 		];
+	}
+
+	private function isEmpty() : bool {
+		// the list is empty if there is nothing between the leading and trailing '|'
+		return (!$this->trackIds || \strlen($this->trackIds) < 3);
+	}
+
+	private function getCoverUrl(IURLGenerator $urlGenerator) : ?string {
+		// the list might not have an id in case it's a generated playlist
+		if ($this->getId() && !$this->isEmpty()) {
+			return $urlGenerator->linkToRoute('music.playlistApi.getCover', ['id' => $this->getId()]);
+		} else {
+			return null;
+		}
 	}
 }

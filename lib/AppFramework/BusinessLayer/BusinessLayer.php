@@ -160,7 +160,7 @@ abstract class BusinessLayer {
 	 * @phpstan-return EntityType[]
 	 */
 	public function findAll(
-			string $userId, int $sortBy=SortBy::None, ?int $limit=null, ?int $offset=null,
+			string $userId, int $sortBy=SortBy::Name, ?int $limit=null, ?int $offset=null,
 			?string $createdMin=null, ?string $createdMax=null, ?string $updatedMin=null, ?string $updatedMax=null) : array {
 		return $this->mapper->findAll($userId, $sortBy, $limit, $offset, $createdMin, $createdMax, $updatedMin, $updatedMax);
 	}
@@ -193,6 +193,14 @@ abstract class BusinessLayer {
 	}
 
 	/**
+	 * Find IDSs of all starred entities
+	 * @return int[]
+	 */
+	public function findAllStarredIds(string $userId) : array {
+		return $this->mapper->findAllStarredIds($userId);
+	}
+
+	/**
 	 * Find all entities with user-given rating 1-5
 	 * @return Entity[]
 	 * @phpstan-return EntityType[]
@@ -217,7 +225,7 @@ abstract class BusinessLayer {
 	 * @phpstan-return EntityType[]
 	 */
 	public function findAllAdvanced(
-			string $conjunction, array $rules, string $userId, int $sortBy=SortBy::None,
+			string $conjunction, array $rules, string $userId, int $sortBy=SortBy::Name,
 			?Random $random=null, ?int $limit=null, ?int $offset=null) : array {
 
 		if ($conjunction !== 'and' && $conjunction !== 'or') {
@@ -249,6 +257,20 @@ abstract class BusinessLayer {
 			return $this->mapper->findAllIds($userId, $ids);
 		} else {
 			return [];
+		}
+	}
+
+	/**
+	 * Find all entity IDs grouped by the given parent entity IDs. Not applicable on all entity types.
+	 * @param int[] $parentIds
+	 * @return array like [parentId => childIds[]]; some parents may have an empty array of children
+	 * @throws BusinessLayerException if the entity type handled by this business layer doesn't have a parent relation
+	 */
+	public function findAllIdsByParentIds(string $userId, array $parentIds) : ?array {
+		try {
+			return $this->mapper->findAllIdsByParentIds($userId, $parentIds);
+		} catch (\DomainException $ex) {
+			throw new BusinessLayerException($ex->getMessage());
 		}
 	}
 

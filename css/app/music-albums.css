@@ -111,7 +111,7 @@
 .view-container.compact .album-area {
 	padding-top: 2px;
 	padding-bottom: 10px;
-	width: 383px;
+	width: 382px;
 }
 
 .view-container.compact .album-area > .albumart,
@@ -121,7 +121,7 @@
 	width: 40px;
 	height: 40px;
 	line-height: 40px;
-	font-size: 24px;
+	font-size: 20px;
 	border-radius: var(--music-albumart-small-border-radius);
 }
 
@@ -147,10 +147,4 @@
 .view-container.single-col.compact .album-area > h2 {
 	/* in the compact mode, specifying width using a percent wouldn't work because the position is not absolute */
 	max-width: calc(100vw - 60px);
-}
-
-.view-container.single-col .album-area .track-list li > div > span {
-	white-space: normal;
-	vertical-align: top;
-	max-width: unset;
 }

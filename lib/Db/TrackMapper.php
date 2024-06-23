@@ -234,24 +234,29 @@ class TrackMapper extends BaseMapper {
 	}
 
 	/**
-	 * Returns all tracks specified by name and/or artist name
+	 * Returns all tracks specified by name, artist name, and/or album name
 	 * @param string|null $name the name of the track
 	 * @param string|null $artistName the name of the artist
 	 * @param string $userId the name of the user
 	 * @return Track[] Tracks matching the criteria
 	 */
-	public function findAllByNameAndArtistName(?string $name, ?string $artistName, string $userId) : array {
+	public function findAllByNameArtistOrAlbum(?string $name, ?string $artistName, ?string $albumName, string $userId) : array {
 		$sqlConditions = [];
 		$params = [$userId];
 
 		if (!empty($name)) {
-			$sqlConditions[] = '`title` = ?';
+			$sqlConditions[] = 'LOWER(`title`) = LOWER(?)';
 			$params[] = $name;
 		}
 
 		if (!empty($artistName)) {
-			$sqlConditions[] = '`artist`.`name` = ?';
+			$sqlConditions[] = 'LOWER(`artist`.`name`) = LOWER(?)';
 			$params[] = $artistName;
+		}
+
+		if (!empty($albumName)) {
+			$sqlConditions[] = 'LOWER(`album`.`name`) = LOWER(?)';
+			$params[] = $albumName;
 		}
 
 		// at least one condition has to be given, otherwise return an empty set
@@ -263,18 +268,23 @@ class TrackMapper extends BaseMapper {
 		}
 	}
 
+	const FAVORITE_TRACK = 0x1;
+	const FAVORITE_ALBUM = 0x2;
+	const FAVORITE_ARTIST = 0x4;
+
 	/**
 	 * Returns all tracks specified by various criteria, all of which are optional
 	 * @param int[] $genres Array of genre IDs
 	 * @param int[] $artists Array of artist IDs
 	 * @param int|null $fromYear Earliest release year to include
 	 * @param int|null $toYear Latest release year to include
+	 * @param int|null $favorite Bit mask of FAVORITE_TRACK, FAVORITE_ALBUM, FAVORITE_ARTIST (given favorite types are ORed in the query)
 	 * @param int $sortBy Sorting rule as defined in the class SortBy
 	 * @param string $userId the name of the user
 	 * @return Track[] Tracks matching the criteria
 	 */
 	public function findAllByCriteria(
-			array $genres, array $artists, ?int $fromYear, ?int $toYear,
+			array $genres, array $artists, ?int $fromYear, ?int $toYear, ?int $favorite,
 			int $sortBy, bool $invertSort, string $userId, ?int $limit=null, ?int $offset=null) : array {
 
 		$sqlConditions = [];
@@ -299,6 +309,20 @@ class TrackMapper extends BaseMapper {
 			$sqlConditions[] = '`year` <= ?';
 			$params[] = $toYear;
 		}
+
+		if (!empty($favorite)) {
+			$favConds = [];
+			if ($favorite & self::FAVORITE_TRACK) {
+				$favConds[] = '`*PREFIX*music_tracks`.`starred` IS NOT NULL';
+			}
+			if ($favorite & self::FAVORITE_ALBUM) {
+				$favConds[] = '`album`.`starred` IS NOT NULL';
+			}
+			if ($favorite & self::FAVORITE_ARTIST) {
+				$favConds[] = '`artist`.`starred` IS NOT NULL';
+			}
+			$sqlConditions[] = '(' . \implode(' OR ', $favConds) . ')';
+		} 
 
 		$sql = $this->selectUserEntities(\implode(' AND ', $sqlConditions), $this->formatSortingClause($sortBy, $invertSort));
 		return $this->findEntities($sql, $params, $limit, $offset);
@@ -457,15 +481,15 @@ class TrackMapper extends BaseMapper {
 		// The extra subquery "mysqlhack" seen around some nested queries is needed in order for these to not be insanely slow on MySQL.
 		switch ($rule) {
 			case 'anywhere':		return self::formatAdvSearchAnywhereCond($sqlOp, $conv); 
-			case 'album':			return "`album_id` IN (SELECT `id` from `*PREFIX*music_albums` `al` WHERE $conv(`al`.`name`) $sqlOp $conv(?))";
+			case 'album':			return "$conv(`album`.`name`) $sqlOp $conv(?)";
 			case 'artist':			return "$conv(`artist`.`name`) $sqlOp $conv(?)";
 			case 'album_artist':	return "`album_id` IN (SELECT `al`.`id` from `*PREFIX*music_albums` `al` JOIN `*PREFIX*music_artists` `ar` ON `al`.`album_artist_id` = `ar`.`id` WHERE $conv(`ar`.`name`) $sqlOp $conv(?))";
 			case 'track':			return "`number` $sqlOp ?";
 			case 'year':			return "`year` $sqlOp ?";
 			case 'albumrating':		return "`album`.`rating` $sqlOp ?";
 			case 'artistrating':	return "`artist`.`rating` $sqlOp ?";
-			case 'favorite_album':	return "`album_id` IN (SELECT `id` from `*PREFIX*music_albums` `al` WHERE $conv(`al`.`name`) $sqlOp $conv(?) AND `al`.`starred` IS NOT NULL)";
-			case 'favorite_artist':	return "`artist_id` IN (SELECT `id` from `*PREFIX*music_artists` `ar` WHERE $conv(`ar`.`name`) $sqlOp $conv(?) AND `ar`.`starred` IS NOT NULL)";
+			case 'favorite_album':	return "$conv(`album`.`name`) $sqlOp $conv(?) AND `album`.`starred` IS NOT NULL";
+			case 'favorite_artist':	return "$conv(`artist`.`name`) $sqlOp $conv(?) AND `artist`.`starred` IS NOT NULL";
 			case 'played_times':	return "`play_count` $sqlOp ?";
 			case 'last_play':		return "`last_played` $sqlOp ?";
 			case 'played':			// fall through, we give no access to other people's data
@@ -484,7 +508,7 @@ class TrackMapper extends BaseMapper {
 			case 'recent_played':	return "`*PREFIX*music_tracks`.`id` IN (SELECT * FROM (SELECT `id` FROM `*PREFIX*music_tracks` WHERE `user_id` = ? ORDER BY `last_played` DESC LIMIT $sqlOp) mysqlhack)";
 			case 'file':			return "$conv(`file`.`name`) $sqlOp $conv(?)";
 			case 'mbid_song':		return parent::advFormatSqlCondition('mbid', $sqlOp, $conv); // alias
-			case 'mbid_album':		return "`album_id` IN (SELECT `id` from `*PREFIX*music_albums` `al` WHERE `al`.`mbid` $sqlOp ?)";
+			case 'mbid_album':		return "`album`.`mbid` $sqlOp ?";
 			case 'mbid_artist':		return "`artist`.`mbid` $sqlOp ?";
 			default:				return parent::advFormatSqlCondition($rule, $sqlOp, $conv);
 		}

@@ -30,6 +30,15 @@
 	width: 100%;
 }
 
+#app-sidebar .fav-button {
+	display: block;
+	position: static;
+	float: left;
+	margin-bottom: -16px;
+	margin-left: 8px;
+	cursor: pointer;
+}
+
 #app-sidebar .close {
 	position: fixed;
 	top: var(--header-height, 45px);
@@ -55,14 +64,14 @@
 	opacity: 1;
 }
 
-#app-sidebar .albumart {
+#app-sidebar .sidebar-content > .albumart {
 	width: 100%;
 	height: 35%;
 	background-size: contain;
 	display: table;
 }
 
-#app-sidebar .albumart span {
+#app-sidebar .sidebar-content > .albumart span {
 	display: table-cell;
 	vertical-align: middle;
 	text-align: center;
@@ -74,6 +83,10 @@
 	text-align: center;
 	display: table;
 	margin: 0 auto 16px auto;
+}
+
+#app-sidebar .tabHeaders {
+	margin-top: 16px;
 }
 
 #app-sidebar .tabsContainer {
@@ -220,6 +233,11 @@
 	margin-left: -5px;
 }
 
+#app-sidebar #favorite-toggle .icon-loading.inline::after {
+	margin-top: 4px;
+	margin-left: 6px;
+}
+
 #app-sidebar h1 {
 	font-size: 24px;
 	text-align: center;
@@ -237,6 +255,7 @@
 	width: 100%;
 	margin-top: 16px;
 	margin-bottom: 0;
+	margin-left: 0;
 }
 
 #app-sidebar #lastfm-info {

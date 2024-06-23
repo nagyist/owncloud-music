@@ -32,7 +32,6 @@ use OCA\Music\BusinessLayer\PlaylistBusinessLayer;
 use OCA\Music\BusinessLayer\TrackBusinessLayer;
 use OCA\Music\Http\ErrorResponse;
 use OCA\Music\Http\FileResponse;
-use OCA\Music\Utility\ApiSerializer;
 use OCA\Music\Utility\CoverHelper;
 use OCA\Music\Utility\PlaylistFileService;
 use OCA\Music\Utility\Util;
@@ -88,9 +87,7 @@ class PlaylistApiController extends Controller {
 	 */
 	public function getAll() {
 		$playlists = $this->playlistBusinessLayer->findAll($this->userId);
-		$serializer = new ApiSerializer();
-
-		return $serializer->serialize($playlists);
+		return Util::arrayMapMethod($playlists, 'toAPI', [$this->urlGenerator]);
 	}
 
 	/**
@@ -111,7 +108,7 @@ class PlaylistApiController extends Controller {
 			$playlist = $this->playlistBusinessLayer->setComment($comment, $playlist->getId(), $this->userId);
 		}
 
-		return $playlist->toAPI();
+		return $playlist->toAPI($this->urlGenerator);
 	}
 
 	/**
@@ -141,7 +138,7 @@ class PlaylistApiController extends Controller {
 			if ($fulltree) {
 				return $this->toFullTree($playlist);
 			} else {
-				return $playlist->toAPI();
+				return $playlist->toAPI($this->urlGenerator);
 			}
 		} catch (BusinessLayerException $ex) {
 			return new ErrorResponse(Http::STATUS_NOT_FOUND, $ex->getMessage());
@@ -153,7 +150,7 @@ class PlaylistApiController extends Controller {
 		$tracks = $this->trackBusinessLayer->findById($trackIds, $this->userId);
 		$this->albumBusinessLayer->injectAlbumsToTracks($tracks, $this->userId);
 
-		$result = $playlist->toAPI();
+		$result = $playlist->toAPI($this->urlGenerator);
 		unset($result['trackIds']);
 		$result['tracks'] = Util::arrayMapMethod($tracks, 'toAPI', [$this->urlGenerator]);
 
@@ -168,7 +165,7 @@ class PlaylistApiController extends Controller {
 	 */
 	public function generate(
 			?bool $useLatestParams, ?string $history, ?string $genres, ?string $artists,
-			?int $fromYear, ?int $toYear, int $size=100, string $historyStrict='false') {
+			?int $fromYear, ?int $toYear, ?string $favorite=null, int $size=100, string $historyStrict='false') {
 
 		if ($useLatestParams) {
 			$history = $this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_history') ?: null;
@@ -176,6 +173,7 @@ class PlaylistApiController extends Controller {
 			$artists = $this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_artists') ?: null;
 			$fromYear = (int)$this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_from_year') ?: null;
 			$toYear = (int)$this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_to_year') ?: null;
+			$favorite = $this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_favorite') ?: null;
 			$size = (int)$this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_size', 100);
 			$historyStrict = $this->configManager->getUserValue($this->userId, $this->appName, 'smartlist_history_strict', 'false');
 		} else {
@@ -184,6 +182,7 @@ class PlaylistApiController extends Controller {
 			$this->configManager->setUserValue($this->userId, $this->appName, 'smartlist_artists', $artists ?? '');
 			$this->configManager->setUserValue($this->userId, $this->appName, 'smartlist_from_year', (string)$fromYear);
 			$this->configManager->setUserValue($this->userId, $this->appName, 'smartlist_to_year', (string)$toYear);
+			$this->configManager->setUserValue($this->userId, $this->appName, 'smartlist_favorite', $favorite ?? '');
 			$this->configManager->setUserValue($this->userId, $this->appName, 'smartlist_size', (string)$size);
 			$this->configManager->setUserValue($this->userId, $this->appName, 'smartlist_history_strict', $historyStrict);
 		}
@@ -194,8 +193,8 @@ class PlaylistApiController extends Controller {
 		$artists = $this->artistBusinessLayer->findAllIds($this->userId, self::toIntArray($artists));
 
 		$playlist = $this->playlistBusinessLayer->generate(
-				$history, $historyStrict, $genres, $artists, $fromYear, $toYear, $size, $this->userId);
-		$result = $playlist->toAPI();
+				$history, $historyStrict, $genres, $artists, $fromYear, $toYear, $favorite, $size, $this->userId);
+		$result = $playlist->toAPI($this->urlGenerator);
 
 		$result['params'] = [
 			'history' => $history ?: null,
@@ -204,6 +203,7 @@ class PlaylistApiController extends Controller {
 			'artists' => \implode(',', $artists) ?: null,
 			'fromYear' => $fromYear ?: null,
 			'toYear' => $toYear ?: null,
+			'favorite' => $favorite ?: null,
 			'size' => $size
 		];
 
@@ -330,7 +330,7 @@ class PlaylistApiController extends Controller {
 	public function importFromFile(int $id, string $filePath) {
 		try {
 			$result = $this->playlistFileService->importFromFile($id, $this->userId, $this->userFolder, $filePath);
-			$result['playlist'] = $result['playlist']->toAPI();
+			$result['playlist'] = $result['playlist']->toAPI($this->urlGenerator);
 			return $result;
 		} catch (BusinessLayerException $ex) {
 			return new ErrorResponse(Http::STATUS_NOT_FOUND, 'playlist not found');
@@ -397,7 +397,7 @@ class PlaylistApiController extends Controller {
 	private function modifyPlaylist(string $funcName, array $funcParams) : JSONResponse {
 		try {
 			$playlist = \call_user_func_array([$this->playlistBusinessLayer, $funcName], $funcParams);
-			return new JSONResponse($playlist->toAPI());
+			return new JSONResponse($playlist->toAPI($this->urlGenerator));
 		} catch (BusinessLayerException $ex) {
 			return new ErrorResponse(Http::STATUS_NOT_FOUND, $ex->getMessage());
 		}

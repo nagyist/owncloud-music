@@ -101,7 +101,7 @@ abstract class BaseMapper extends CompatibleMapper {
 	 * @return Entity[]
 	 * @phpstan-return EntityType[]
 	 */
-	public function findAll(string $userId, int $sortBy=SortBy::None, int $limit=null, int $offset=null,
+	public function findAll(string $userId, int $sortBy=SortBy::Name, int $limit=null, int $offset=null,
 							?string $createdMin=null, ?string $createdMax=null, ?string $updatedMin=null, ?string $updatedMax=null) : array {
 		$sorting = $this->formatSortingClause($sortBy);
 		[$condition, $params] = $this->formatTimestampConditions($createdMin, $createdMax, $updatedMin, $updatedMax);
@@ -157,6 +157,22 @@ abstract class BaseMapper extends CompatibleMapper {
 	}
 
 	/**
+	 * Find IDSs of all user's starred entities. It is safe to call this also on entity types
+	 * not supporting starring in which case an empty array will be returned.
+	 * @return int[]
+	 */
+	public function findAllStarredIds(string $userId) : array {
+		if (\property_exists($this->entityClass, 'starred')) {
+			$sql = "SELECT `id` FROM `{$this->getTableName()}` WHERE `starred` IS NOT NULL AND `user_id` = ?";
+			$result = $this->execute($sql, [$userId]);
+	
+			return \array_map('intval', $result->fetchAll(\PDO::FETCH_COLUMN));
+		} else {
+			return [];
+		}
+	}
+
+	/**
 	 * Find all entities with user-given rating 1-5
 	 * @return Entity[]
 	 * @phpstan-return EntityType[]
@@ -185,7 +201,7 @@ abstract class BaseMapper extends CompatibleMapper {
 	 * @return Entity[]
 	 * @phpstan-return EntityType[]
 	 */
-	public function findAllAdvanced(string $conjunction, array $rules, string $userId, int $sortBy=SortBy::None, ?int $limit=null, ?int $offset=null) : array {
+	public function findAllAdvanced(string $conjunction, array $rules, string $userId, int $sortBy=SortBy::Name, ?int $limit=null, ?int $offset=null) : array {
 		$sqlConditions = [];
 		$sqlParams = [$userId];
 
@@ -221,6 +237,34 @@ abstract class BaseMapper extends CompatibleMapper {
 		$result = $this->execute($sql, $params);
 
 		return \array_map('intval', $result->fetchAll(\PDO::FETCH_COLUMN));
+	}
+
+	/**
+	 * Find all entity IDs grouped by the given parent entity IDs. Not applicable on all entity types.
+	 * @param int[] $parentIds
+	 * @return array like [parentId => childIds[]]; some parents may have an empty array of children
+	 * @throws \DomainException if the entity type handled by this mapper doesn't have a parent relation
+	 */
+	public function findAllIdsByParentIds(string $userId, array $parentIds) : ?array {
+		if ($this->parentIdColumn === null) {
+			throw new \DomainException("Finding by parent is not applicable for the table {$this->getTableName()}");
+		}
+
+		$result = [];
+		if (\count($parentIds) > 0) {
+			$sql = "SELECT `id`, `{$this->parentIdColumn}` AS `parent_id` FROM `{$this->getTableName()}`
+					WHERE `user_id` = ? AND `{$this->parentIdColumn}` IN " . $this->questionMarks(\count($parentIds));
+			$params = \array_merge([$userId], $parentIds);
+			$rows = $this->execute($sql, $params)->fetchAll();
+
+			// ensure that the result contains also "parents" with no children and has the same order as $parentIds
+			$result = \array_fill_keys($parentIds, []);
+			foreach ($rows as $row) {
+				$result[(int)$row['parent_id']][] = (int)$row['id'];
+			}
+		}	
+
+		return $result;
 	}
 
 	/**
@@ -590,7 +634,7 @@ abstract class BaseMapper extends CompatibleMapper {
 		} else {
 			// split to parts by whitespace
 			$parts = \preg_split('/\s+/', $input, -1, PREG_SPLIT_NO_EMPTY);
-			// glue the parts back together with a wildcard charater
+			// glue the parts back together with a wildcard character
 			$pattern = \implode('%', $parts);
 		}
 		return "%$pattern%";
@@ -677,6 +721,14 @@ abstract class BaseMapper extends CompatibleMapper {
 			return "string_agg($column, ',')";
 		} else {
 			return "GROUP_CONCAT($column)";
+		}
+	}
+
+	protected function sqlCoalesce(string $value, string $replacement) : string {
+		if ($this->dbType == 'pgsql') {
+			return "COALESCE($value, $replacement)";
+		} else {
+			return "IFNULL($value, $replacement)";
 		}
 	}
 

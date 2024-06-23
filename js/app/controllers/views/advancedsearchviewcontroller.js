@@ -253,6 +253,7 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 						{ key: 'updated',			name: gettextCatalog.getString('Update date'),			type: 'date' },
 						{ key: 'recent_added',		name: gettextCatalog.getString('Recently added'),		type: 'numeric_limit' },
 						{ key: 'recent_updated',	name: gettextCatalog.getString('Recently updated'),		type: 'numeric_limit' },
+						{ key: 'favorite',			name: gettextCatalog.getString('Favorite'),				type: 'text' },
 					]
 				},
 			],
@@ -472,10 +473,13 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 
 		$scope.getTrackData = function(listItem, index, _scope) {
 			return {
-				title: listItem.artist.name + ' - ' + listItem.title,
-				tooltip: '',
+				title: listItem.title,
+				title2: listItem.artist.name,
+				tooltip: listItem.title,
+				tooltip2: listItem.artist.name,
 				number: index + 1,
-				id: listItem.id
+				id: listItem.id,
+				art: listItem.album
 			};
 		};
 
@@ -493,10 +497,13 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 
 		$scope.getAlbumData = function(listItem, index, _scope) {
 			return {
-				title: listItem.artist.name + ' - ' + listItem.name,
-				tooltip: '',
+				title: listItem.name,
+				title2: listItem.artist.name,
+				tooltip: listItem.name,
+				tooltip2: listItem.artist.name,
 				number: index + 1,
-				id: listItem.id
+				id: listItem.id,
+				art: listItem
 			};
 		};
 
@@ -515,9 +522,10 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 		$scope.getArtistData = function(listItem, index, _scope) {
 			return {
 				title: listItem.name,
-				tooltip: '',
+				tooltip: listItem.name,
 				number: index + 1,
-				id: listItem.id
+				id: listItem.id,
+				art: listItem
 			};
 		};
 
@@ -534,9 +542,11 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 		$scope.getPlaylistData = function(listItem, index, _scope) {
 			return {
 				title: listItem.name,
-				tooltip: '',
+				title2: $scope.trackCountText(listItem),
+				tooltip: listItem.name,
 				number: index + 1,
-				id: listItem.id
+				id: listItem.id,
+				art: listItem
 			};
 		};
 
@@ -558,10 +568,13 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 
 		$scope.getPodcastEpisodeData = function(listItem, index, _scope) {
 			return {
-				title: listItem.title + ' (' + listItem.channel.title + ')',
-				tooltip: '',
+				title: listItem.title,
+				title2: listItem.channel.title,
+				tooltip: listItem.title,
+				tooltip2: listItem.channel.title,
 				number: index + 1,
-				id: listItem.id
+				id: listItem.id,
+				art: listItem.channel
 			};
 		};
 		
@@ -576,9 +589,10 @@ angular.module('Music').controller('AdvancedSearchViewController', [
 		$scope.getPodcastChannelData = function(listItem, index, _scope) {
 			return {
 				title: listItem.title,
-				tooltip: '',
+				tooltip: listItem.title,
 				number: index + 1,
-				id: listItem.id
+				id: listItem.id,
+				art: listItem
 			};
 		};
 

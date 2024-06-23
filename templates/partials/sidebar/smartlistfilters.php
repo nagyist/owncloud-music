@@ -28,6 +28,17 @@
 		</select>
 	</div>
 
+	<div>
+		<label for="filter-favorite" translate>Favorite</label>
+		<select id="filter-favorite" ng-model="smartListParams.favorite">
+			<option value=""></option>
+			<option value="track" translate>Favorite track</option>
+			<option value="album" translate>Favorite album</option>
+			<option value="artist" translate>Favorite artist</option>
+			<option value="track_album_artist" translate>Favorite track, album, or artist</option>
+		</select>
+	</div>
+
 	<div title="{{ 'Note that this selection makes any difference only when the library has more than the requested number of matches. In the strict mode, only the best matching songs are included with no element of randomness.' | translate }}">
 		<label for="filter-history" translate>History</label>
 		<select id="filter-history" ng-model="smartListParams.history">

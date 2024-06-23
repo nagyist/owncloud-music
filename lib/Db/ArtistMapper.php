@@ -32,11 +32,34 @@ class ArtistMapper extends BaseMapper {
 	 * @param integer $sortBy sort order of the result set
 	 * @return Artist[]
 	 */
-	public function findAllHavingAlbums(string $userId, int $sortBy=SortBy::None,
+	public function findAllHavingAlbums(string $userId, int $sortBy=SortBy::Name,
 			?int $limit=null, ?int $offset=null, ?string $name=null, int $matchMode=MatchMode::Exact,
 			?string $createdMin=null, ?string $createdMax=null, ?string $updatedMin=null, ?string $updatedMax=null) : array {
-		$params = [$userId];
+		
 		$condition = $this->formatExcludeChildlessCondition();
+		return $this->findAllWithCondition(
+			$condition, $userId, $sortBy, $limit, $offset, $name, $matchMode, $createdMin, $createdMax, $updatedMin, $updatedMax);
+	}
+
+	/**
+	 * @param string $userId
+	 * @param integer $sortBy sort order of the result set
+	 * @return Artist[]
+	 */
+	public function findAllHavingTracks(string $userId, int $sortBy=SortBy::Name,
+			?int $limit=null, ?int $offset=null, ?string $name=null, int $matchMode=MatchMode::Exact,
+			?string $createdMin=null, ?string $createdMax=null, ?string $updatedMin=null, ?string $updatedMax=null) : array {
+		
+		$condition = 'EXISTS (SELECT 1 FROM `*PREFIX*music_tracks` `track` WHERE `*PREFIX*music_artists`.`id` = `track`.`artist_id`)';
+		return $this->findAllWithCondition(
+			$condition, $userId, $sortBy, $limit, $offset, $name, $matchMode, $createdMin, $createdMax, $updatedMin, $updatedMax);
+	}
+
+	private function findAllWithCondition(
+			string $condition, string $userId, int $sortBy, ?int $limit, ?int $offset,
+			?string $name, int $matchMode, ?string $createdMin, ?string $createdMax,
+			?string $updatedMin, ?string $updatedMax) : array {
+		$params = [$userId];
 
 		if ($name !== null) {
 			[$nameCond, $nameParams] = $this->formatNameConditions($name, $matchMode);
@@ -191,8 +214,8 @@ class ArtistMapper extends BaseMapper {
 			case 'last_play':		return "`*PREFIX*music_artists`.`id` IN (SELECT * FROM (SELECT `artist_id` from `*PREFIX*music_tracks` GROUP BY `artist_id` HAVING MAX(`last_played`) $sqlOp ?) mysqlhack)";
 			case 'played':			// fall through, we give no access to other people's data; not part of the API spec but Ample uses this
 			case 'myplayed':		return "`*PREFIX*music_artists`.`id` IN (SELECT * FROM (SELECT `artist_id` from `*PREFIX*music_tracks` GROUP BY `artist_id` HAVING MAX(`last_played`) $sqlOp) mysqlhack)"; // operator "IS NULL" or "IS NOT NULL"
-			case 'album_count':		return "`*PREFIX*music_artists`.`id` IN (SELECT `id` FROM `*PREFIX*music_artists` JOIN (SELECT `*PREFIX*music_artists`.`id` AS `id2`, IFNULL(`count1`, 0) `count2` FROM `*PREFIX*music_artists` LEFT JOIN (SELECT `*PREFIX*music_albums`.`album_artist_id` AS `id1`, COUNT(`*PREFIX*music_albums`.`id`) AS `count1` FROM `*PREFIX*music_albums` GROUP BY `*PREFIX*music_albums`.`album_artist_id`) `sub1` ON `*PREFIX*music_artists`.`id` = `id1`) `sub2` ON `*PREFIX*music_artists`.`id` = `id2` WHERE `count2` $sqlOp ?)";
-			case 'song_count':		return "`*PREFIX*music_artists`.`id` IN (SELECT `id` FROM `*PREFIX*music_artists` JOIN (SELECT `*PREFIX*music_artists`.`id` AS `id2`, IFNULL(`count1`, 0) `count2` FROM `*PREFIX*music_artists` LEFT JOIN (SELECT `*PREFIX*music_tracks`.`artist_id` AS `id1`, COUNT(`*PREFIX*music_tracks`.`id`) AS `count1` FROM `*PREFIX*music_tracks` GROUP BY `*PREFIX*music_tracks`.`artist_id`) `sub1` ON `*PREFIX*music_artists`.`id` = `id1`) `sub2` ON `*PREFIX*music_artists`.`id` = `id2` WHERE `count2` $sqlOp ?)";
+			case 'album_count':		return "`*PREFIX*music_artists`.`id` IN (SELECT `id` FROM `*PREFIX*music_artists` JOIN (SELECT `*PREFIX*music_artists`.`id` AS `id2`, " . $this->sqlCoalesce('`count1`', '0') . " `count2` FROM `*PREFIX*music_artists` LEFT JOIN (SELECT `*PREFIX*music_albums`.`album_artist_id` AS `id1`, COUNT(`*PREFIX*music_albums`.`id`) AS `count1` FROM `*PREFIX*music_albums` GROUP BY `*PREFIX*music_albums`.`album_artist_id`) `sub1` ON `*PREFIX*music_artists`.`id` = `id1`) `sub2` ON `*PREFIX*music_artists`.`id` = `id2` WHERE `count2` $sqlOp ?)";
+			case 'song_count':		return "`*PREFIX*music_artists`.`id` IN (SELECT `id` FROM `*PREFIX*music_artists` JOIN (SELECT `*PREFIX*music_artists`.`id` AS `id2`, " . $this->sqlCoalesce('`count1`', '0') . " `count2` FROM `*PREFIX*music_artists` LEFT JOIN (SELECT `*PREFIX*music_tracks`.`artist_id` AS `id1`, COUNT(`*PREFIX*music_tracks`.`id`) AS `count1` FROM `*PREFIX*music_tracks` GROUP BY `*PREFIX*music_tracks`.`artist_id`) `sub1` ON `*PREFIX*music_artists`.`id` = `id1`) `sub2` ON `*PREFIX*music_artists`.`id` = `id2` WHERE `count2` $sqlOp ?)";
 			case 'time':			return "`*PREFIX*music_artists`.`id` IN (SELECT * FROM (SELECT `artist_id` FROM `*PREFIX*music_tracks` GROUP BY `artist_id` HAVING SUM(`length`) $sqlOp ?) mysqlhack)";
 			case 'genre':			return "`*PREFIX*music_artists`.`id` IN (SELECT * FROM (SELECT `artist_id` FROM `*PREFIX*music_tracks` `t` JOIN `*PREFIX*music_genres` `g` ON `t`.`genre_id` = `g`.`id` GROUP BY `artist_id` HAVING $conv(" . $this->sqlGroupConcat('`g`.`name`') . ") $sqlOp $conv(?)) mysqlhack)";
 			case 'song_genre':		return "`*PREFIX*music_artists`.`id` IN (SELECT `artist_id` FROM `*PREFIX*music_tracks` `t` JOIN `*PREFIX*music_genres` `g` ON `t`.`genre_id` = `g`.`id` WHERE $conv(`g`.`name`) $sqlOp $conv(?))";

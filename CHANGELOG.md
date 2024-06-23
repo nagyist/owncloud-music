@@ -1,19 +1,55 @@
-## [Unreleased]
+## 2.0.0 - 2024-06-23
+
+### Added
+- Additional tabs "Albums" and "Tracks" to the artist details pane
+- Additional tabs "Tracks" and "Artists" to the album details pane
+- Favorite toggle to the details pane of the tracks, albums, artists, playlists, and podcasts
+- New filter "Favorite" for the smart list
+- [OpenSubsonic](https://opensubsonic.netlify.app/docs/) extensions to the Subsonic API: 
+  * Method `getLyricsBySongId`
+  * Property `sortName` to all artist, album, and song responses
+  * Property `played` to all song responses
+
+### Changed
+- Drop support for PHP versions older 7.4 (i.e. PHP 7.1 - 7.3)
+- Drop support for ownCloud versions older than 10.5 (i.e. OC 10.0 - 10.4)
+- Drop support for Nextcloud versions older than 20 (i.e. NC 13 - 19)
+- New design including cover art on all list-like views
+- Ampache and Subsonic APIs: Check the username in case-insensitive manner
+  [#1147](https://github.com/owncloud/music/issues/1147)
+- Ampache API:
+  * The action `download` doesn't implicitly record the track as played (unlike `stream`)
+  * The song property `url` refers to the `stream` URL instead of `download` URL
+
+### Fixed
+- Playlist sorting not working if the list contains any broken track references
+- Nextcloud.log being flooded with the debug-level message "/appinfo/app.php is deprecated" on NC20+
+  [#1043](https://github.com/owncloud/music/issues/1043)
+
+## 1.11.0 - 2024-04-21
 
 ### Added
 - Advanced search view
   [#1141](https://github.com/owncloud/music/pull/1141)
 - Support for Nextcloud 29
   [#1132](https://github.com/owncloud/music/issues/1132)
-- Option to change the Ampache session timeout with the `config.php` key `music.ampache_session_expiry_time`
-  [#1134](https://github.com/owncloud/music/issues/1134)
+- Ampache API:
+  * Option to change the session timeout with the `config.php` key `music.ampache_session_expiry_time`
+    [#1134](https://github.com/owncloud/music/issues/1134)
+  * Support for the actions `search`, `user`, `user_playlists`, `user_smartlists`, `playlist_add`, `index`, `scrobble`
+  * Support for the advanced search rule `bitrate` on songs
+- Subsonic API:
+  * Support for the method `getOpenSubsonicExtensions`
 
 ### Changed
-- Ampache:
-  * Advanced search rule `bitrate` supported for songs
+- Ampache API:
   * Advanced search operators `matches regex` and `does not match regex` supported also on SQLite (this is important to properly support [Ample](https://github.com/mitchray/ample))
   * Advanced search operators `sounds like` and `does not sound like` supported also on SQLite, and on PgSQL if module `fuzzystrmatch` is installed
   * Advanced search rules `album_genre` and `artist_genre` supported also on PgSQL
+  * Authentication tag can be delivered also using the bearer token header (required to support Ample v3)
+    [#1140](https://github.com/owncloud/music/issues/1140)
+  * All results with property `art` have also the property `has_art`
+  * Implicitly record the track as played with the actions `download` and `stream`
 
 ### Fixed
 - Playlist file not playing within Files in case the first track of the list is in unsupported format
@@ -25,7 +61,7 @@
   [#1126](https://github.com/owncloud/music/issues/1126)
 - Music app page loading randomly failing on Chrome
   [#1137](https://github.com/owncloud/music/issues/1137)
-- Ampache:
+- Ampache API:
   * API not working on ownCloud 10.14.0 (HTTP error 500 on all Ampache API calls)
     [#1138](https://github.com/owncloud/music/issues/1138)
   * Advanced search rule `playlist_name` not being case insensitive like the other string rules
@@ -33,7 +69,8 @@
   * Advanced search operator `does not sound like` not working
   * Advanced search numeric rules (e.g. `year`, `played_times`, `album_count`) not working properly on SQLite
   * Advanced search rules `album_count` and `song_count` never finding artists whose respective count is 0
-- Subsonic: 
+  * Incorrect root node name on the actions `user_preference` and `user_preferences`
+- Subsonic API:
   * Method `getAlbumInfo2` response having incorrect root element name
     [#1125](https://github.com/owncloud/music/pull/1125) @perillamint
   * On NC28+, every XML API call logged an error 'Undefined array key "" at /var/www/html/lib/private/AppFramework/Http.php#128'.
@@ -344,7 +381,7 @@
 - Fallback Aurora.js player not working in the main app (i.e. worked only within Files; broken since Music v1.2.1)
 - Fallback Aurora.js not working on most versions of Nextcloud (starting from NC15 or NC16)
 - The manifest file of the HLS stream was being polled indefinitely after listening to the stream was stopped
-- Severe performance problem in the background cleaunup task when PostgreSQL used
+- Severe performance problem in the background cleanup task when PostgreSQL used
   [#997](https://github.com/owncloud/music/issues/997)
 - Not able to start playing a podcast episode which happens to have the same ID as currently playing song or radio station
 
@@ -1188,10 +1225,10 @@ A mistake made when creating the release package 1.3.0 broke the application pre
 - better SQL for the cleanup code
 
 ## 0.3.8 - 2015-10-27
-- support for ogg (#416 by pellaeon)
-- fix issue with not existing prepareQuery (#411 by roha4000)
+- support for ogg (#416 by @pellaeon)
+- fix issue with not existing prepareQuery (#411 by @roha4000)
 - fix failures after upload to public link shares (#436, #387)
-- fix for Angular variable names (#425 by DavidPrevot)
+- fix for Angular variable names (#425 by @DavidPrevot)
 
 ## 0.3.7 - 2015-07-16
 - fix issue with SQL statement in background job for MySQL (#372)
@@ -1201,7 +1238,7 @@ A mistake made when creating the release package 1.3.0 broke the application pre
 - works now with ownCloud 7, 8, 8.1 and master
 - fix twice opened file chooser in personal settings (#344)
 - move to core shipped AppFramework (ownCloud 7.0.0+) (#390)
-- proper cleanup SQL statement (#347 by butonic)
+- proper cleanup SQL statement (#347 by @butonic)
 - automated tests for the Ampache API (#380)
 - automated tests against stable7+ versions of core and all DBs on travis (391)
 
@@ -1353,7 +1390,7 @@ Known bugs:
 - Unknown artists, albums & titles now localizable
   * allow and use NULL instead of fixed artist or album name
   * add localized string to represent these albums and artists
-  * migration: convert existing 'owncloud unnknown ...' placeholders to NULL
+  * migration: convert existing 'owncloud unknown ...' placeholders to NULL
 
 Internal
 - new URL generation inside the Javascript
@@ -1378,7 +1415,7 @@ Internal
   * add call to register components to personal settings page
   * fix typos
 - merged l10n extraction to upstream - removed patchfiles
-- minimalized travis-ci footprint
+- minimized travis-ci footprint
 - CSRF token used for restangular queries
 - AngularJS 1.2.14
 - Underscore 1.6.0
@@ -1420,7 +1457,7 @@ Known bugs:
 - L10n support
 - OGG metadata extraction - just works for local files - not for external ones refs #73
 - proper deletion of database cache
-- metadata extraction fix - disable 2GB filesize check in getID3
+- metadata extraction fix - disable 2GB file size check in getID3
 - use Flash fallback in Chrome - drawback: just MP3 playback - there is a notification if this is the case
 - fix album art/placeholder race condition
 - no more appframework dependency
@@ -1430,7 +1467,7 @@ Known bugs:
 - proper IE8 PNGs
 - fulltree for artists only return tracks of the artist - #99
 - scanner uses the shortest artist name if multiple artists are detected
-- scrollbar fix - was overlaped by player bar #102
+- scrollbar fix - was overlapped by player bar #102
 
 Known bugs:
 - in IE 9 and 10 the play icons haven't the correct width/height (fixed in v0.1.7-beta)
@@ -1444,7 +1481,7 @@ Known bugs:
 - use flash 8 for fallback player
 - fix ogg playback
 - play the clicked song of an album and not the first song of the album - fixes #83
-- limit metadatascan to audio files
+- limit metadata scan to audio files
 - Adds clean up background job
   * find covers for albums without cover
   * remove tracks without files, albums without tracks and artists without albums and tracks
@@ -1473,7 +1510,7 @@ Known bugs:
 - visualize loading state
 - make scanner more robust and fix PHP errors
 - disable execution time for rescan
-- realign playerbar content and adding whitespace (ref #80)
+- realign player bar content and adding whitespace (ref #80)
 
 Known bugs:
 - clicking a song the first song of the album is played instead of the actual clicked song

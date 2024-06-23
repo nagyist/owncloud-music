@@ -5,7 +5,7 @@
  * later. See the COPYING file.
  *
  * @author Pauli Järvinen <pauli.jarvinen@gmail.com>
- * @copyright Pauli Järvinen 2018 - 2021
+ * @copyright Pauli Järvinen 2018 - 2024
  */
 
 /**
@@ -16,13 +16,20 @@
 	line-height: 20px;
 }
 
-.track-list li,
 .track-list li * {
 	cursor: pointer;
 }
 
-.track-list li > div {
+.track-list .more-less {
+	cursor: pointer;
+}
+
+.track-list > li > div {
 	display: table-cell;
+}
+
+.track-list > li > div > * {
+	vertical-align: middle;
 }
 
 .track-list > li.placeholder {
@@ -46,7 +53,6 @@
 	display: inline-block;
 }
 
-
 /**
  * View specific rules for the track-list directive in the 'Albums' view
  */
@@ -60,36 +66,34 @@
 	padding-left: 2px;
 	padding-top: 6px;
 	padding-bottom: 5px;
-	text-overflow: ellipsis;
-	overflow: hidden;
 	white-space: nowrap;
 }
 
-.album-area .track-list li > div > span {
-	max-width: 200px;
+.album-area .track-list .item-info {
+	max-width: 240px;
 	text-overflow: ellipsis;
 	overflow: hidden;
-	display: inline-block;
+}
+
+.album-area .track-list .item-info > span {
 	vertical-align: bottom;
 }
 
+.view-container.single-col .album-area .track-list .item-info {
+	max-width: unset;
+	overflow: initial;
+}
+
+.view-container.single-col .album-area .track-list .item-info > span {
+	display: inline-block;
+	white-space: normal;
+	vertical-align: top;
+}
 
 #albums.compact .album-area .track-list {
 	margin-left: 30px;
 }
 
-#albums.compact:not(.single-col) .album-area .track-list li > div > span {
-	max-width: 272px;
-}
-
-/**
- * Rules for the track-list directive in "flat list views" like 'All tracks', 'Genres', and 'Folders'
- */
-
-.flat-list-view .track-list {
-	margin-right: 50px;
-}
-
-.flat-list-view .track-list li > div > span {
-	white-space: normal;
+#albums.compact:not(.single-col) .album-area .track-list .item-info {
+	max-width: 305px;
 }
